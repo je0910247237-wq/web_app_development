@@ -1,0 +1,11 @@
+# Python / Flask project gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+instance/
+*.db
+.DS_Store
+.idea/
