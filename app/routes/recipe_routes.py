@@ -1,75 +1,69 @@
-"""Route skeleton for recipe related endpoints.
-All functions contain only the route decorator, signature and a docstring describing the purpose.
-Implementation (database calls, template rendering, redirects) will be added later.
-"""
+from flask import Blueprint, request, render_template, redirect, url_for, flash, abort
+from app.models.recipe import Recipe
+from app.models.ingredient import Ingredient
 
-from flask import Blueprint, request, render_template, redirect, url_for, abort
-
-# Blueprint for recipe routes
 recipe_bp = Blueprint('recipe', __name__)
 
 @recipe_bp.route('/', methods=['GET'])
+@recipe_bp.route('/recipes', methods=['GET'])
 def list_recipes():
-    """列出所有食譜
-    - 輸入: 無
-    - 處理: 取得所有食譜 (Recipe.get_all) (未實作)
-    - 輸出: 渲染 `templates/recipes/index.html`
-    - 錯誤處理: 無特別錯誤
-    """
-    pass
+    search_query = request.args.get('search', '')
+    recipes = Recipe.get_all(search_query)
+    return render_template('recipes/index.html', recipes=recipes, search_query=search_query)
 
 @recipe_bp.route('/recipes/<int:id>', methods=['GET'])
 def view_recipe(id):
-    """顯示單一食譜詳細資訊
-    - 輸入: URL 參數 `id`
-    - 處理: 透過 Recipe.get_by_id 取得食譜
-    - 輸出: 渲染 `templates/recipes/detail.html`
-    - 錯誤處理: 若找不到返回 404
-    """
-    pass
+    recipe = Recipe.get_by_id(id)
+    if not recipe:
+        abort(404)
+    return render_template('recipes/detail.html', recipe=recipe)
 
-@recipe_bp.route('/recipes/create', methods=['GET'])
-def create_recipe_form():
-    """顯示新增食譜的表單
-    - 輸入: 無
-    - 輸出: 渲染 `templates/recipes/create.html`
-    """
-    pass
-
-@recipe_bp.route('/recipes/create', methods=['POST'])
+@recipe_bp.route('/recipes/create', methods=['GET', 'POST'])
 def create_recipe():
-    """處理表單提交，建立食譜
-    - 輸入: 表單欄位 `title`, `description`, `steps`, `ingredient_ids`
-    - 處理: 呼叫 Recipe.create
-    - 輸出: 成功後 `redirect` 到食譜列表
-    - 錯誤處理: 資料驗證失敗重新呈現表單
-    """
-    pass
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        steps = request.form.get('steps')
+        ingredient_ids = request.form.getlist('ingredient_ids')
+        
+        if not title:
+            flash('食譜標題為必填項目！', 'danger')
+        else:
+            Recipe.create(title, description, steps, ingredient_ids)
+            flash('食譜新增成功！', 'success')
+            return redirect(url_for('recipe.list_recipes'))
+            
+    ingredients = Ingredient.get_all()
+    return render_template('recipes/create.html', ingredients=ingredients)
 
-@recipe_bp.route('/recipes/<int:id>/edit', methods=['GET'])
-def edit_recipe_form(id):
-    """顯示編輯食譜表單，預載入現有資料
-    - 輸入: URL 參數 `id`
-    - 輸出: 渲染 `templates/recipes/edit.html`
-    """
-    pass
-
-@recipe_bp.route('/recipes/<int:id>/edit', methods=['POST'])
-def update_recipe(id):
-    """處理編輯表單，更新食譜
-    - 輸入: 表單欄位與 URL `id`
-    - 處理: 呼叫 Recipe.update
-    - 輸出: 成功後 `redirect` 到食譜詳細頁
-    - 錯誤處理: 驗證失敗重新渲染表單
-    """
-    pass
+@recipe_bp.route('/recipes/<int:id>/edit', methods=['GET', 'POST'])
+def edit_recipe(id):
+    recipe = Recipe.get_by_id(id)
+    if not recipe:
+        abort(404)
+        
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        steps = request.form.get('steps')
+        ingredient_ids = request.form.getlist('ingredient_ids')
+        
+        if not title:
+            flash('食譜標題為必填項目！', 'danger')
+        else:
+            Recipe.update(id, title, description, steps, ingredient_ids)
+            flash('食譜更新成功！', 'success')
+            return redirect(url_for('recipe.view_recipe', id=id))
+            
+    ingredients = Ingredient.get_all()
+    # 擷取目前已選擇的食材 ID 列表
+    selected_ingredient_ids = [ing['id'] for ing in recipe['ingredients']]
+    return render_template('recipes/edit.html', recipe=recipe, ingredients=ingredients, selected_ingredient_ids=selected_ingredient_ids)
 
 @recipe_bp.route('/recipes/<int:id>/delete', methods=['POST'])
 def delete_recipe(id):
-    """刪除指定食譜
-    - 輸入: URL 參數 `id`
-    - 處理: 呼叫 Recipe.delete
-    - 輸出: `redirect` 回食譜列表
-    - 錯誤處理: 若找不到返回 404
-    """
-    pass
+    if Recipe.delete(id):
+        flash('食譜已刪除！', 'success')
+    else:
+        flash('刪除食譜時發生錯誤。', 'danger')
+    return redirect(url_for('recipe.list_recipes'))

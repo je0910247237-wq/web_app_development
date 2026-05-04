@@ -1,45 +1,44 @@
-from . import db
-from sqlalchemy.orm import relationship
-from sqlalchemy import Table, Column, Integer, ForeignKey, Text, DateTime
-import datetime
+from app import get_db_connection
 
-# Association table is defined in recipe.py; ensure import if needed
-# (SQLAlchemy will use the same Table object across models)
-
-class Ingredient(db.Model):
-    __tablename__ = 'ingredient'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(Text, nullable=False)
-
-    # relationship back to Recipe via association table defined in recipe.py
-    recipes = relationship('Recipe', secondary='recipe_ingredient', back_populates='ingredients')
-
-    # ---------- CRUD methods ----------
+class Ingredient:
     @staticmethod
-    def create(session, name):
-        ingredient = Ingredient(name=name)
-        session.add(ingredient)
-        session.commit()
-        return ingredient
+    def get_all():
+        conn = get_db_connection()
+        try:
+            ingredients = conn.execute('SELECT * FROM ingredient ORDER BY name').fetchall()
+            return ingredients
+        except Exception as e:
+            print(f"Error getting ingredients: {e}")
+            return []
+        finally:
+            conn.close()
 
     @staticmethod
-    def get_all(session):
-        return session.query(Ingredient).all()
+    def create(name):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('INSERT INTO ingredient (name) VALUES (?)', (name,))
+            ingredient_id = cursor.lastrowid
+            conn.commit()
+            return ingredient_id
+        except Exception as e:
+            print(f"Error creating ingredient: {e}")
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
 
     @staticmethod
-    def get_by_id(session, ingredient_id):
-        return session.query(Ingredient).filter_by(id=ingredient_id).first()
-
-    def update(self, session, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-        session.commit()
-        return self
-
-    def delete(self, session):
-        session.delete(self)
-        session.commit()
-
-    def __repr__(self):
-        return f"<Ingredient {self.id} {self.name}>"
+    def delete(ingredient_id):
+        conn = get_db_connection()
+        try:
+            conn.execute('DELETE FROM ingredient WHERE id = ?', (ingredient_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting ingredient: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()

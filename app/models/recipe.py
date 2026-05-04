@@ -1,60 +1,111 @@
-from . import db
-from sqlalchemy.orm import relationship
-from sqlalchemy import Table, Column, Integer, ForeignKey, Text, DateTime
-import datetime
+from app import get_db_connection
+from datetime import datetime
 
-# Association table for many-to-many relationship
-recipe_ingredient = Table(
-    'recipe_ingredient',
-    db.metadata,
-    Column('recipe_id', Integer, ForeignKey('recipe.id', ondelete='CASCADE'), primary_key=True),
-    Column('ingredient_id', Integer, ForeignKey('ingredient.id', ondelete='CASCADE'), primary_key=True)
-)
-
-class Recipe(db.Model):
-    __tablename__ = 'recipe'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(Text, nullable=False)
-    description = Column(Text)
-    steps = Column(Text)  # could store JSON or newline separated steps
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-
-    # relationship to Ingredient via association table
-    ingredients = relationship('Ingredient', secondary=recipe_ingredient, back_populates='recipes')
-
-    # ---------- CRUD methods ----------
+class Recipe:
     @staticmethod
-    def create(session, title, description=None, steps=None, ingredient_ids=None):
-        """Create a new recipe and associate ingredients.
-        `ingredient_ids` should be an iterable of existing Ingredient ids.
-        """
-        recipe = Recipe(title=title, description=description, steps=steps)
-        if ingredient_ids:
-            ingredients = session.query(Ingredient).filter(Ingredient.id.in_(ingredient_ids)).all()
-            recipe.ingredients = ingredients
-        session.add(recipe)
-        session.commit()
-        return recipe
+    def get_all(search_query=None):
+        conn = get_db_connection()
+        try:
+            if search_query:
+                recipes = conn.execute(
+                    'SELECT * FROM recipe WHERE title LIKE ? ORDER BY created_at DESC',
+                    ('%' + search_query + '%',)
+                ).fetchall()
+            else:
+                recipes = conn.execute('SELECT * FROM recipe ORDER BY created_at DESC').fetchall()
+            return recipes
+        except Exception as e:
+            print(f"Error getting recipes: {e}")
+            return []
+        finally:
+            conn.close()
 
     @staticmethod
-    def get_all(session):
-        return session.query(Recipe).all()
+    def get_by_id(recipe_id):
+        conn = get_db_connection()
+        try:
+            recipe = conn.execute('SELECT * FROM recipe WHERE id = ?', (recipe_id,)).fetchone()
+            if not recipe:
+                return None
+            
+            ingredients = conn.execute('''
+                SELECT i.id, i.name 
+                FROM ingredient i
+                JOIN recipe_ingredient ri ON i.id = ri.ingredient_id
+                WHERE ri.recipe_id = ?
+            ''', (recipe_id,)).fetchall()
+            
+            recipe_dict = dict(recipe)
+            recipe_dict['ingredients'] = ingredients
+            return recipe_dict
+        except Exception as e:
+            print(f"Error getting recipe: {e}")
+            return None
+        finally:
+            conn.close()
 
     @staticmethod
-    def get_by_id(session, recipe_id):
-        return session.query(Recipe).filter_by(id=recipe_id).first()
+    def create(title, description, steps, ingredient_ids):
+        conn = get_db_connection()
+        try:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO recipe (title, description, steps, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+                (title, description, steps, now, now)
+            )
+            recipe_id = cursor.lastrowid
+            
+            for i_id in ingredient_ids:
+                cursor.execute(
+                    'INSERT INTO recipe_ingredient (recipe_id, ingredient_id) VALUES (?, ?)',
+                    (recipe_id, i_id)
+                )
+            conn.commit()
+            return recipe_id
+        except Exception as e:
+            print(f"Error creating recipe: {e}")
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
 
-    def update(self, session, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-        session.commit()
-        return self
+    @staticmethod
+    def update(recipe_id, title, description, steps, ingredient_ids):
+        conn = get_db_connection()
+        try:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE recipe SET title = ?, description = ?, steps = ?, updated_at = ? WHERE id = ?',
+                (title, description, steps, now, recipe_id)
+            )
+            
+            cursor.execute('DELETE FROM recipe_ingredient WHERE recipe_id = ?', (recipe_id,))
+            for i_id in ingredient_ids:
+                cursor.execute(
+                    'INSERT INTO recipe_ingredient (recipe_id, ingredient_id) VALUES (?, ?)',
+                    (recipe_id, i_id)
+                )
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating recipe: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
 
-    def delete(self, session):
-        session.delete(self)
-        session.commit()
-
-    def __repr__(self):
-        return f"<Recipe {self.id} {self.title}>"
+    @staticmethod
+    def delete(recipe_id):
+        conn = get_db_connection()
+        try:
+            conn.execute('DELETE FROM recipe WHERE id = ?', (recipe_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            print(f"Error deleting recipe: {e}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()

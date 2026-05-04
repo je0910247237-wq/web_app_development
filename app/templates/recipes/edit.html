@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-secondary text-white">
+                <h4 class="mb-0">編輯食譜</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('recipe.edit_recipe', id=recipe.id) }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">食譜標題 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ recipe.title }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">簡介</label>
+                        <textarea class="form-control" id="description" name="description" rows="2">{{ recipe.description }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">所需食材</label>
+                        <div class="row row-cols-2 row-cols-md-3 g-2">
+                            {% for ingredient in ingredients %}
+                            <div class="col">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="ingredient_ids" value="{{ ingredient.id }}" id="ing_{{ ingredient.id }}" {% if ingredient.id in selected_ingredient_ids %}checked{% endif %}>
+                                    <label class="form-check-label" for="ing_{{ ingredient.id }}">
+                                        {{ ingredient.name }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="steps" class="form-label">料理步驟</label>
+                        <textarea class="form-control" id="steps" name="steps" rows="6">{{ recipe.steps }}</textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('recipe.view_recipe', id=recipe.id) }}" class="btn btn-outline-secondary">取消並返回</a>
+                        <button type="submit" class="btn btn-success">更新儲存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

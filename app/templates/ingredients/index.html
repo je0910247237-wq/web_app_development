@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- 新增食材表單區塊 -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">新增食材</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('ingredient.create_ingredient') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">食材名稱</label>
+                        <input type="text" class="form-control" id="name" name="name" required placeholder="例如：番茄、雞胸肉">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">新增</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 食材列表區塊 -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0">食材庫清單</h5>
+            </div>
+            <div class="card-body">
+                {% if ingredients %}
+                <ul class="list-group">
+                    {% for ingredient in ingredients %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ ingredient.name }}
+                        <form action="{{ url_for('ingredient.delete_ingredient', id=ingredient.id) }}" method="POST" onsubmit="return confirm('確定要刪除「{{ ingredient.name }}」嗎？(若有食譜使用此食材，關聯也會一併移除)');">
+                            <button type="submit" class="btn btn-danger btn-sm">刪除</button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center my-3">目前還沒有任何食材資料。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

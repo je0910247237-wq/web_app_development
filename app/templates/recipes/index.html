@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>我的食譜清單</h2>
+    <a href="{{ url_for('recipe.create_recipe') }}" class="btn btn-primary">➕ 新增食譜</a>
+</div>
+
+<form method="GET" action="{{ url_for('recipe.list_recipes') }}" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="search" class="form-control" placeholder="搜尋食譜標題..." value="{{ search_query }}">
+        <button class="btn btn-outline-secondary" type="submit">搜尋</button>
+        {% if search_query %}
+            <a href="{{ url_for('recipe.list_recipes') }}" class="btn btn-outline-danger">清除</a>
+        {% endif %}
+    </div>
+</form>
+
+{% if recipes %}
+<div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for recipe in recipes %}
+    <div class="col">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">{{ recipe.title }}</h5>
+                <p class="card-text text-muted">{{ recipe.description | truncate(50) }}</p>
+            </div>
+            <div class="card-footer bg-transparent border-top-0 d-flex justify-content-between">
+                <small class="text-muted">{{ recipe.created_at[:10] }}</small>
+                <a href="{{ url_for('recipe.view_recipe', id=recipe.id) }}" class="btn btn-sm btn-outline-primary">查看詳情</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info text-center">
+    目前沒有找到任何食譜。趕快去新增一個吧！
+</div>
+{% endif %}
+{% endblock %}
